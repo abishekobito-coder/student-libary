@@ -1,0 +1,76 @@
+{% from "_macros.html" import icon, flashes, csrf with context %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>{% block title %}Study Library{% endblock %} · Study Library</title>
+  <link rel="icon" href="{{ url_for('static', filename='icons/favicon.svg') }}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+{% block body %}
+{% if g.user %}
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="{{ url_for('dashboard') }}">
+      <span class="brand-mark">{{ icon('book') }}</span><span>Study Library</span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">{{ icon('home') }}<span>Dashboard</span></a>
+      <a href="{{ url_for('dashboard') }}#favorites" class="nav-link">{{ icon('star') }}<span>Favorites</span></a>
+      <a href="{{ url_for('dashboard') }}#recent" class="nav-link">{{ icon('clock') }}<span>Recently opened</span></a>
+
+      <div class="nav-title">Subjects</div>
+      {% for s in sidebar_subjects %}
+        <a href="{{ url_for('subject_view', subject_id=s.id) }}"
+           class="nav-link {% if current_subject_id == s.id and not current_unit_id %}active{% elif current_subject_id == s.id %}open{% endif %}">
+          {{ icon(s.icon) }}<span class="truncate">{{ s.name }}</span>
+        </a>
+        {% if current_subject_id == s.id and nav_units %}
+        <div class="nav-units">
+          {% for u in nav_units %}
+          <a href="{{ url_for('unit_view', unit_id=u.id) }}" class="nav-sublink {% if current_unit_id == u.id %}active{% endif %}">
+            <span class="unit-num">{{ loop.index }}</span><span class="truncate">{{ u.name }}</span>
+          </a>
+          {% endfor %}
+        </div>
+        {% endif %}
+      {% else %}
+        <p class="nav-empty">No subjects yet.</p>
+      {% endfor %}
+    </nav>
+    <div class="sidebar-foot">
+      <div class="user-chip">{{ icon('user') }}<span class="truncate">{{ g.user.username }}</span></div>
+      <form method="post" action="{{ url_for('logout') }}">
+        {{ csrf() }}
+        <button class="btn btn-sm btn-block" type="submit">{{ icon('logout') }}<span>Log out</span></button>
+      </form>
+    </div>
+  </aside>
+  <div class="backdrop" data-toggle-sidebar></div>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="btn btn-icon menu-btn" type="button" data-toggle-sidebar aria-label="Open menu">{{ icon('menu') }}</button>
+      <nav class="breadcrumbs" aria-label="Breadcrumb">{% block breadcrumbs %}{% endblock %}</nav>
+    </header>
+    <main class="content">
+      {{ flashes() }}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+{% else %}
+<main class="plain-page">
+  {{ flashes() }}
+  {% block plain_content %}{% endblock %}
+</main>
+{% endif %}
+{% endblock %}
+{% block dialogs %}{% endblock %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
+

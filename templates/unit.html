@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, csrf, unit_dialog, resource_edit_dialog, edit_resource_button, favorite_button, delete_resource_button, resource_meta with context %}
+{% block title %}{{ unit.name }}{% endblock %}
+{% block breadcrumbs %}
+<a class="crumb" href="{{ url_for('dashboard') }}">Dashboard</a>
+<span class="crumb-sep">{{ icon('chevron-right') }}</span>
+<a class="crumb truncate" href="{{ url_for('subject_view', subject_id=unit.subject_id) }}">{{ unit.subject_name }}</a>
+<span class="crumb-sep">{{ icon('chevron-right') }}</span>
+<span class="crumb current truncate">{{ unit.name }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="title-with-icon">
+    <span class="big-icon unit-badge">{{ unit_number }}</span>
+    <div>
+      <p class="eyebrow">{{ unit.subject_name }} · Unit {{ unit_number }}</p>
+      <h1>{{ unit.name }}</h1>
+      <p class="muted small">{{ resources|length }} material{{ '' if resources|length == 1 else 's' }}</p>
+    </div>
+  </div>
+  <div class="head-actions">
+    <button type="button" class="btn"
+            data-dialog="unitDialog"
+            data-action="{{ url_for('unit_rename', unit_id=unit.id) }}"
+            data-title="Rename unit" data-submit="Save"
+            data-fields='{{ {"name": unit.name}|tojson }}'>{{ icon('edit') }}<span>Rename</span></button>
+    <form method="post" action="{{ url_for('unit_delete', unit_id=unit.id) }}" class="inline"
+          data-confirm='Delete the unit "{{ unit.name }}" and all its materials? This cannot be undone.'>
+      {{ csrf() }}
+      <button type="submit" class="btn btn-danger-ghost">{{ icon('trash') }}<span>Delete</span></button>
+    </form>
+    <button type="button" class="btn btn-primary" data-dialog="addResourceDialog">{{ icon('plus') }}<span>Add Resource</span></button>
+  </div>
+</div>
+
+<div class="toolbar wrap">
+  <div class="chips" data-filter-for="#resourceGrid" role="tablist">
+    <button type="button" class="chip active" data-filter="all">All <span>{{ resources|length }}</span></button>
+    {% for t in RESOURCE_TYPES %}
+    <button type="button" class="chip" data-filter="{{ t }}" {% if not counts[t] %}hidden{% endif %}>{{ TYPE_PLURALS[t] }} <span>{{ counts[t] }}</span></button>
+    {% endfor %}
+  </div>
+  <div class="toolbar">
+    <div class="search">
+      {{ icon('search') }}
+      <input type="search" placeholder="Search in this unit…" data-live-search="#resourceGrid" aria-label="Search materials">
+    </div>
+    <div class="view-toggle" data-view-for="#resourceGrid">
+      <button type="button" class="btn btn-icon" data-view="grid" title="Grid view" aria-label="Grid view">{{ icon('grid') }}</button>
+      <button type="button" class="btn btn-icon" data-view="list" title="List view" aria-label="List view">{{ icon('list') }}</button>
+    </div>
+  </div>
+</div>
+
+{% if resources %}
+<div class="res-grid view-grid" id="resourceGrid" data-view-key="resources">
+  {% for r in resources %}
+  <article class="res-card" data-type="{{ r.type }}" data-name="{{ (r.title ~ ' ' ~ r.description)|lower }}">
+    <a class="res-thumb type-{{ r.type }}" href="{{ url_for('resource_view', resource_id=r.id) }}" tabindex="-1" aria-hidden="true">
+      {% if r.type == 'image' %}
+        <img src="{{ url_for('resource_file', resource_id=r.id) }}" alt="" loading="lazy">
+      {% elif r.type == 'video' and r.subtype == 'youtube' %}
+        <img src="https://i.ytimg.com/vi/{{ youtube_id(r.url) }}/mqdefault.jpg" alt="" loading="lazy" data-fallback>
+        <span class="thumb-fallback">{{ icon('t-video') }}</span>
+      {% else %}
+        {{ icon('t-' ~ r.type) }}
+      {% endif %}
+    </a>
+    <div class="res-body">
+      <div class="res-top">
+        <span class="type-badge small type-{{ r.type }}">{{ icon('t-' ~ r.type) }}</span>
+        <a class="res-title" href="{{ url_for('resource_view', resource_id=r.id) }}" title="{{ r.title }}">{{ r.title }}</a>
+      </div>
+      <div class="res-meta">{{ TYPE_LABELS[r.type] }} · {{ resource_meta(r) }}</div>
+      {% if r.description %}<p class="res-desc">{{ r.description }}</p>{% endif %}
+    </div>
+    <div class="res-actions">
+      <a class="btn btn-sm" href="{{ url_for('resource_open', resource_id=r.id) }}" target="_blank" rel="noopener" title="Open">{{ icon('external') }}<span>Open</span></a>
+      {% if is_previewable(r) %}
+      <a class="btn btn-sm" href="{{ url_for('resource_view', resource_id=r.id) }}" title="Preview">{{ icon('eye') }}<span>Preview</span></a>
+      {% else %}
+      <a class="btn btn-sm" href="{{ url_for('resource_view', resource_id=r.id) }}" title="Details">{{ icon('info') }}<span>Details</span></a>
+      {% endif %}
+      {% if r.type in FILE_TYPES or r.type == 'note' %}
+      <a class="btn btn-sm btn-icon" href="{{ url_for('resource_download', resource_id=r.id) }}" title="Download" aria-label="Download">{{ icon('download') }}</a>
+      {% endif %}
+      {{ edit_resource_button(r, "btn btn-sm btn-icon", "") }}
+      {{ favorite_button(r) }}
+      {{ delete_resource_button(r) }}
+    </div>
+  </article>
+  {% endfor %}
+</div>
+<p class="empty-inline" data-no-results="#resourceGrid" hidden>No materials match this filter.</p>
+{% else %}
+<div class="empty">
+  <span class="empty-icon">{{ icon('folder') }}</span>
+  <h3>This unit is empty</h3>
+  <p class="muted">Add PDFs, slides, documents, images, videos, links, AI chats or notes.</p>
+  <button type="button" class="btn btn-primary" data-dialog="addResourceDialog">{{ icon('plus') }}<span>Add Resource</span></button>
+</div>
+{% endif %}
+
+<div class="unit-pager">
+  {% if prev_unit %}
+  <a class="btn" href="{{ url_for('unit_view', unit_id=prev_unit.id) }}">{{ icon('arrow-left') }}<span class="truncate">{{ prev_unit.name }}</span></a>
+  {% else %}<span></span>{% endif %}
+  {% if next_unit %}
+  <a class="btn" href="{{ url_for('unit_view', unit_id=next_unit.id) }}"><span class="truncate">{{ next_unit.name }}</span>{{ icon('chevron-right') }}</a>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block dialogs %}
+{{ unit_dialog() }}
+{{ resource_edit_dialog() }}
+
+<dialog id="addResourceDialog" class="dialog dialog-wide">
+  <form method="post" action="{{ url_for('resource_add', unit_id=unit.id) }}" enctype="multipart/form-data" class="form" id="addResourceForm">
+    {{ csrf() }}
+    <div class="dialog-head">
+      <h2>Add resource to “{{ unit.name }}”</h2>
+      <button type="button" class="btn btn-icon" data-close aria-label="Close">{{ icon('x') }}</button>
+    </div>
+
+    <div class="label">Type</div>
+    <div class="type-picker">
+      {% for t in RESOURCE_TYPES %}
+      <label class="type-option">
+        <input type="radio" name="type" value="{{ t }}" {% if loop.first %}checked{% endif %}
+               {% if t in FILE_TYPES %}data-accept="{{ '.' ~ FILE_TYPES[t].exts|join(',.') }}" data-max-mb="{{ FILE_TYPES[t].max_mb }}"{% endif %}>
+        <span class="type-badge type-{{ t }}">{{ icon('t-' ~ t) }}</span>
+        <span>{{ TYPE_LABELS[t] }}</span>
+      </label>
+      {% endfor %}
+    </div>
+
+    <div data-types="pdf ppt document image">
+      <label>File(s)
+        <input type="file" name="files" multiple required>
+        <span class="hint" data-file-hint></span>
+      </label>
+    </div>
+
+    <div data-types="video link ai">
+      <label>URL
+        <input type="url" name="url" required maxlength="2000" placeholder="https://">
+        <span class="hint" data-url-hint></span>
+      </label>
+    </div>
+
+    <div data-types="ai">
+      <label>AI tool
+        <select name="provider">
+          <option value="">Detect from URL</option>
+          {% for key, label in AI_PROVIDERS.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+
+    <label>Title <span class="muted" data-title-hint>(optional – defaults to the file name)</span>
+      <input name="title" maxlength="200">
+    </label>
+
+    <div data-types="note">
+      <label>Note
+        <textarea name="content" rows="10" maxlength="1000000" placeholder="Write your note…"></textarea>
+      </label>
+    </div>
+
+    <label>Description <span class="muted">(optional)</span>
+      <textarea name="description" rows="2" maxlength="1000"></textarea>
+    </label>
+
+    <div class="dialog-actions">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary">Add resource</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}

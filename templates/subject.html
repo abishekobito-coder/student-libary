@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, csrf, subject_dialog, unit_dialog with context %}
+{% block title %}{{ subject.name }}{% endblock %}
+{% block breadcrumbs %}
+<a class="crumb" href="{{ url_for('dashboard') }}">Dashboard</a>
+<span class="crumb-sep">{{ icon('chevron-right') }}</span>
+<span class="crumb current truncate">{{ subject.name }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="title-with-icon">
+    <span class="big-icon">{{ icon(subject.icon) }}</span>
+    <div>
+      <h1>{{ subject.name }}</h1>
+      {% if subject.description %}<p class="muted pre-line">{{ subject.description }}</p>{% endif %}
+      <p class="muted small">{{ units|length }} unit{{ '' if units|length == 1 else 's' }} · {{ total }} material{{ '' if total == 1 else 's' }}</p>
+    </div>
+  </div>
+  <div class="head-actions">
+    <button type="button" class="btn"
+            data-dialog="subjectDialog"
+            data-action="{{ url_for('subject_edit', subject_id=subject.id) }}"
+            data-title="Edit subject" data-submit="Save changes"
+            data-fields='{{ {"name": subject.name, "description": subject.description, "icon": subject.icon}|tojson }}'>{{ icon('edit') }}<span>Edit</span></button>
+    <form method="post" action="{{ url_for('subject_delete', subject_id=subject.id) }}" class="inline"
+          data-confirm='Delete the subject "{{ subject.name }}" with all its units and files? This cannot be undone.'>
+      {{ csrf() }}
+      <button type="submit" class="btn btn-danger-ghost">{{ icon('trash') }}<span>Delete</span></button>
+    </form>
+    <button type="button" class="btn btn-primary"
+            data-dialog="unitDialog"
+            data-action="{{ url_for('unit_create', subject_id=subject.id) }}"
+            data-title="New unit" data-submit="Add unit"
+            data-fields='{"name": ""}'>{{ icon('plus') }}<span>Add Unit</span></button>
+  </div>
+</div>
+
+<section class="section">
+  <div class="section-head">
+    <h2>Units</h2>
+    {% if units|length > 1 %}<span class="muted small">Drag rows or use the arrows to reorder.</span>{% endif %}
+  </div>
+
+  {% if units %}
+  <ol class="unit-list" id="unitList"
+      data-reorder-url="{{ url_for('units_reorder', subject_id=subject.id) }}">
+    {% for u in units %}
+    <li class="unit-row" draggable="true" data-id="{{ u.id }}">
+      <span class="drag-handle" title="Drag to reorder">{{ icon('grip') }}</span>
+      <span class="unit-num big">{{ loop.index }}</span>
+      <a class="unit-link" href="{{ url_for('unit_view', unit_id=u.id) }}">
+        <span class="unit-name">{{ u.name }}</span>
+        <span class="muted small">{{ u.resource_count }} material{{ '' if u.resource_count == 1 else 's' }}</span>
+      </a>
+      <div class="row-actions">
+        <form method="post" action="{{ url_for('unit_move', unit_id=u.id) }}" class="inline">
+          {{ csrf() }}<input type="hidden" name="direction" value="up">
+          <button type="submit" class="btn btn-sm btn-icon" title="Move up" aria-label="Move up" {% if loop.first %}disabled{% endif %}>{{ icon('arrow-up') }}</button>
+        </form>
+        <form method="post" action="{{ url_for('unit_move', unit_id=u.id) }}" class="inline">
+          {{ csrf() }}<input type="hidden" name="direction" value="down">
+          <button type="submit" class="btn btn-sm btn-icon" title="Move down" aria-label="Move down" {% if loop.last %}disabled{% endif %}>{{ icon('arrow-down') }}</button>
+        </form>
+        <button type="button" class="btn btn-sm btn-icon" title="Rename" aria-label="Rename unit"
+                data-dialog="unitDialog"
+                data-action="{{ url_for('unit_rename', unit_id=u.id) }}"
+                data-title="Rename unit" data-submit="Save"
+                data-fields='{{ {"name": u.name}|tojson }}'>{{ icon('edit') }}</button>
+        <form method="post" action="{{ url_for('unit_delete', unit_id=u.id) }}" class="inline"
+              data-confirm='Delete the unit "{{ u.name }}" and all {{ u.resource_count }} material(s) in it? This cannot be undone.'>
+          {{ csrf() }}
+          <button type="submit" class="btn btn-sm btn-icon btn-danger-ghost" title="Delete" aria-label="Delete unit">{{ icon('trash') }}</button>
+        </form>
+        <a class="btn btn-sm" href="{{ url_for('unit_view', unit_id=u.id) }}">Open</a>
+      </div>
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <div class="empty">
+    <span class="empty-icon">{{ icon('layers') }}</span>
+    <h3>No units yet</h3>
+    <p class="muted">Split this subject into units, e.g. “Unit 1 – Introduction”.</p>
+    <button type="button" class="btn btn-primary"
+            data-dialog="unitDialog" data-action="{{ url_for('unit_create', subject_id=subject.id) }}"
+            data-title="New unit" data-submit="Add unit" data-fields='{"name": ""}'>{{ icon('plus') }}<span>Add Unit</span></button>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block dialogs %}{{ subject_dialog() }}{{ unit_dialog() }}{% endblock %}
+

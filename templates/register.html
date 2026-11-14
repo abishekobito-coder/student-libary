@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, flashes, csrf with context %}
+{% block title %}Create account{% endblock %}
+{% block body %}
+<main class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-brand"><span class="brand-mark">{{ icon('book') }}</span>Study Library</div>
+    <h1>Create your account</h1>
+    <p class="muted">Your subjects and files stay on this computer.</p>
+    {{ flashes() }}
+    <form method="post" action="{{ url_for('register') }}" class="form">
+      {{ csrf() }}
+      <label>Username
+        <input name="username" value="{{ username }}" required minlength="3" maxlength="32"
+               pattern="[A-Za-z0-9_.\-]{3,32}" autocomplete="username" autofocus
+               title="3-32 characters: letters, numbers, dot, dash or underscore">
+        <span class="hint">3–32 characters: letters, numbers, dot, dash or underscore.</span>
+      </label>
+      <label>Password
+        <input type="password" name="password" required minlength="6" maxlength="128" autocomplete="new-password">
+        <span class="hint">At least 6 characters.</span>
+      </label>
+      <label>Confirm password
+        <input type="password" name="confirm" required minlength="6" maxlength="128" autocomplete="new-password">
+      </label>
+      <button type="submit" class="btn btn-primary btn-block">Create account</button>
+    </form>
+    <p class="auth-switch">Already have an account? <a href="{{ url_for('login') }}">Log in</a></p>
+  </div>
+</main>
+{% endblock %}
+

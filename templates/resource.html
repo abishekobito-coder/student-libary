@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, csrf, resource_edit_dialog, edit_resource_button, favorite_button, resource_meta with context %}
+{% block title %}{{ res.title }}{% endblock %}
+{% block breadcrumbs %}
+<a class="crumb" href="{{ url_for('dashboard') }}">Dashboard</a>
+<span class="crumb-sep">{{ icon('chevron-right') }}</span>
+<a class="crumb truncate" href="{{ url_for('subject_view', subject_id=res.subject_id) }}">{{ res.subject_name }}</a>
+<span class="crumb-sep">{{ icon('chevron-right') }}</span>
+<a class="crumb truncate" href="{{ url_for('unit_view', unit_id=res.unit_id) }}">{{ res.unit_name }}</a>
+<span class="crumb-sep">{{ icon('chevron-right') }}</span>
+<span class="crumb current truncate">{{ res.title }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="title-with-icon">
+    <span class="big-icon type-{{ res.type }}">{{ icon('t-' ~ res.type) }}</span>
+    <div class="min-w-0">
+      <p class="eyebrow">{{ TYPE_LABELS[res.type] }} · {{ resource_meta(res) }}</p>
+      <h1 class="break">{{ res.title }}</h1>
+      {% if res.description %}<p class="muted pre-line">{{ res.description }}</p>{% endif %}
+      {% if res.original_name %}<p class="muted small">File: {{ res.original_name }} · Added {{ res.created_at|nicedate }}</p>
+      {% elif res.url %}<p class="muted small break">{{ res.url }}</p>{% endif %}
+    </div>
+  </div>
+  <div class="head-actions">
+    <a class="btn btn-primary" href="{{ url_for('resource_open', resource_id=res.id) }}" target="_blank" rel="noopener">{{ icon('external') }}<span>Open</span></a>
+    {% if res.type in FILE_TYPES or res.type == 'note' %}
+    <a class="btn" href="{{ url_for('resource_download', resource_id=res.id) }}">{{ icon('download') }}<span>Download</span></a>
+    {% endif %}
+    {{ edit_resource_button(res, "btn", "Edit") }}
+    {{ favorite_button(res, "btn btn-icon") }}
+    <form method="post" action="{{ url_for('resource_delete', resource_id=res.id) }}" class="inline"
+          data-confirm='Delete "{{ res.title }}"? This cannot be undone.'>
+      {{ csrf() }}
+      <button type="submit" class="btn btn-danger-ghost">{{ icon('trash') }}<span>Delete</span></button>
+    </form>
+  </div>
+</div>
+
+<section class="preview">
+  {% if missing %}
+    <div class="notice notice-error">
+      {{ icon('info') }}
+      <div>The stored file for this resource is missing from the <code>uploads</code> folder.
+      Delete this entry and upload the file again.</div>
+    </div>
+
+  {% elif res.type == 'pdf' %}
+    <iframe class="preview-frame" src="{{ url_for('resource_file', resource_id=res.id) }}" title="{{ res.title }}"></iframe>
+    <p class="muted small">If the PDF does not display, use <strong>Open</strong> or <strong>Download</strong>.</p>
+
+  {% elif res.type == 'image' %}
+    <a href="{{ url_for('resource_file', resource_id=res.id) }}" target="_blank" rel="noopener" class="preview-img-wrap">
+      <img class="preview-img" src="{{ url_for('resource_file', resource_id=res.id) }}" alt="{{ res.title }}">
+    </a>
+
+  {% elif res.type == 'document' and text is not none %}
+    <pre class="preview-text">{{ text }}</pre>
+    {% if truncated %}<p class="muted small">Only the beginning of this file is shown. Download it to see everything.</p>{% endif %}
+
+  {% elif res.type == 'video' and res.subtype == 'youtube' %}
+    <div class="video-wrap">
+      <iframe src="https://www.youtube-nocookie.com/embed/{{ youtube_id(res.url) }}" title="{{ res.title }}"
+              allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+              referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+    </div>
+    <p class="muted small">Needs an internet connection. If the player does not load, click <strong>Open</strong>.</p>
+
+  {% elif res.type == 'video' and direct_video(res.url) %}
+    <video class="preview-video" src="{{ res.url }}" controls preload="metadata"></video>
+
+  {% elif res.type == 'note' %}
+    <div class="note" id="noteView" {% if edit_note %}hidden{% endif %}>
+      <div class="note-head">
+        <span class="muted small">Last updated {{ res.updated_at|nicedate }}</span>
+        <button type="button" class="btn btn-sm" data-toggle-note>{{ icon('edit') }}<span>Edit note</span></button>
+      </div>
+      {% if res.content %}
+        <div class="note-body">{{ res.content }}</div>
+      {% else %}
+        <p class="muted">This note is empty. Click “Edit note” to write something.</p>
+      {% endif %}
+    </div>
+    <form method="post" action="{{ url_for('resource_edit', resource_id=res.id) }}" class="form note-editor" id="noteEditor" {% if not edit_note %}hidden{% endif %}>
+      {{ csrf() }}
+      <input type="hidden" name="next" value="{{ url_for('resource_view', resource_id=res.id) }}">
+      <label>Title <input name="title" value="{{ res.title }}" required maxlength="200"></label>
+      <label>Note <textarea name="content" rows="18" maxlength="1000000">{{ res.content or '' }}</textarea></label>
+      <label>Description <span class="muted">(optional)</span>
+        <textarea name="description" rows="2" maxlength="1000">{{ res.description }}</textarea></label>
+      <div class="dialog-actions">
+        <button type="button" class="btn" data-toggle-note>Cancel</button>
+        <button type="submit" class="btn btn-primary">Save note</button>
+      </div>
+    </form>
+
+  {% else %}
+    <div class="no-preview">
+      <span class="empty-icon type-{{ res.type }}">{{ icon('t-' ~ res.type) }}</span>
+      {% if res.type in FILE_TYPES %}
+        <h3>No in-browser preview for .{{ file_ext(res) }} files</h3>
+        <p class="muted">Download the file to open it in PowerPoint, Word or another app.</p>
+        <a class="btn btn-primary" href="{{ url_for('resource_download', resource_id=res.id) }}">{{ icon('download') }}<span>Download {{ res.file_size|filesize }}</span></a>
+      {% else %}
+        <h3>{{ res.title }}</h3>
+        <p class="muted break">{{ res.url }}</p>
+        <a class="btn btn-primary" href="{{ url_for('resource_open', resource_id=res.id) }}" target="_blank" rel="noopener">{{ icon('external') }}<span>Open link</span></a>
+      {% endif %}
+    </div>
+  {% endif %}
+</section>
+
+<p><a class="btn" href="{{ url_for('unit_view', unit_id=res.unit_id) }}">{{ icon('arrow-left') }}<span>Back to {{ res.unit_name }}</span></a></p>
+{% endblock %}
+
+{% block dialogs %}{{ resource_edit_dialog() }}{% endblock %}
+

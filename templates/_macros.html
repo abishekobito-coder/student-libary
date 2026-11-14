@@ -1,0 +1,143 @@
+{# Shared Jinja macros. Import with:  {% from "_macros.html" import icon, flashes with context %} #}
+
+{% macro icon(name, cls="") -%}
+<svg class="icon {{ cls }}" aria-hidden="true" focusable="false"><use href="{{ url_for('static', filename='icons/icons.svg') }}#i-{{ name }}"></use></svg>
+{%- endmacro %}
+
+{% macro csrf() -%}
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+{%- endmacro %}
+
+{% macro flashes() -%}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flashes">
+    {% for category, message in messages %}
+    <div class="flash flash-{{ category }}" role="status">
+      <span>{{ message }}</span>
+      <button type="button" class="flash-close" data-dismiss aria-label="Dismiss">{{ icon('x') }}</button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+{% endwith %}
+{%- endmacro %}
+
+{# Create / edit subject dialog (the JS fills in the action and fields). #}
+{% macro subject_dialog() -%}
+<dialog id="subjectDialog" class="dialog">
+  <form method="post" action="{{ url_for('subject_create') }}" class="form">
+    {{ csrf() }}
+    <input type="hidden" name="next" value="{{ request.full_path }}">
+    <div class="dialog-head">
+      <h2 data-dialog-title>New subject</h2>
+      <button type="button" class="btn btn-icon" data-close aria-label="Close">{{ icon('x') }}</button>
+    </div>
+    <label>Subject name
+      <input name="name" required maxlength="120" placeholder="e.g. Computer Networks">
+    </label>
+    <label>Description <span class="muted">(optional)</span>
+      <textarea name="description" rows="2" maxlength="1000" placeholder="What is this subject about?"></textarea>
+    </label>
+    <div class="label">Icon</div>
+    <div class="icon-picker">
+      {% for name in SUBJECT_ICONS %}
+      <label class="icon-option" title="{{ name|capitalize }}">
+        <input type="radio" name="icon" value="{{ name }}" {% if loop.first %}checked{% endif %}>
+        <span>{{ icon(name) }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary" data-dialog-submit>Create subject</button>
+    </div>
+  </form>
+</dialog>
+{%- endmacro %}
+
+{# Create / rename unit dialog. #}
+{% macro unit_dialog() -%}
+<dialog id="unitDialog" class="dialog">
+  <form method="post" action="#" class="form">
+    {{ csrf() }}
+    <input type="hidden" name="next" value="{{ request.full_path }}">
+    <div class="dialog-head">
+      <h2 data-dialog-title>New unit</h2>
+      <button type="button" class="btn btn-icon" data-close aria-label="Close">{{ icon('x') }}</button>
+    </div>
+    <label>Unit name
+      <input name="name" required maxlength="120" placeholder="e.g. Unit 1 – Introduction">
+    </label>
+    <div class="dialog-actions">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary" data-dialog-submit>Add unit</button>
+    </div>
+  </form>
+</dialog>
+{%- endmacro %}
+
+{# Rename / edit description dialog for any resource. #}
+{% macro resource_edit_dialog() -%}
+<dialog id="resourceEditDialog" class="dialog">
+  <form method="post" action="#" class="form">
+    {{ csrf() }}
+    <input type="hidden" name="next" value="{{ request.full_path }}">
+    <div class="dialog-head">
+      <h2>Edit resource</h2>
+      <button type="button" class="btn btn-icon" data-close aria-label="Close">{{ icon('x') }}</button>
+    </div>
+    <label>Title
+      <input name="title" required maxlength="200">
+    </label>
+    <label data-field="url">URL
+      <input name="url" type="url" required maxlength="2000" placeholder="https://">
+    </label>
+    <label>Description <span class="muted">(optional)</span>
+      <textarea name="description" rows="3" maxlength="1000"></textarea>
+    </label>
+    <div class="dialog-actions">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary">Save changes</button>
+    </div>
+  </form>
+</dialog>
+{%- endmacro %}
+
+{# Button that opens the edit dialog for one resource. #}
+{% macro edit_resource_button(r, cls="btn btn-sm", label="Edit") -%}
+{% set fields = {"title": r.title, "description": r.description} %}
+{% if r.type in LINK_TYPES %}{% set _ = fields.update({"url": r.url}) %}{% endif %}
+<button type="button" class="{{ cls }}" title="Rename / edit description"
+        data-dialog="resourceEditDialog"
+        data-action="{{ url_for('resource_edit', resource_id=r.id) }}"
+        data-fields='{{ fields|tojson }}'>{{ icon('edit') }}<span>{{ label }}</span></button>
+{%- endmacro %}
+
+{% macro favorite_button(r, cls="btn btn-sm btn-icon") -%}
+<form method="post" action="{{ url_for('resource_favorite', resource_id=r.id) }}" class="inline">
+  {{ csrf() }}
+  <input type="hidden" name="next" value="{{ request.full_path }}">
+  <button type="submit" class="{{ cls }} {% if r.is_fav %}is-fav{% endif %}"
+          title="{{ 'Remove from favorites' if r.is_fav else 'Add to favorites' }}"
+          aria-label="{{ 'Remove from favorites' if r.is_fav else 'Add to favorites' }}">{{ icon('star', 'filled' if r.is_fav else '') }}</button>
+</form>
+{%- endmacro %}
+
+{% macro delete_resource_button(r, cls="btn btn-sm btn-icon btn-danger-ghost") -%}
+<form method="post" action="{{ url_for('resource_delete', resource_id=r.id) }}" class="inline"
+      data-confirm='Delete "{{ r.title }}"? This cannot be undone.'>
+  {{ csrf() }}
+  <button type="submit" class="{{ cls }}" title="Delete" aria-label="Delete">{{ icon('trash') }}</button>
+</form>
+{%- endmacro %}
+
+{# One-line description of a resource (file type + size, host, etc.). #}
+{% macro resource_meta(r) -%}
+{% if r.type in FILE_TYPES %}{{ file_ext(r)|upper }}{% if r.file_size %} · {{ r.file_size|filesize }}{% endif %}
+{% elif r.type == 'video' %}{{ 'YouTube' if r.subtype == 'youtube' else host_of(r.url) }}
+{% elif r.type == 'ai' %}{{ AI_PROVIDERS.get(r.subtype, 'AI') }} · {{ host_of(r.url) }}
+{% elif r.type == 'link' %}{{ host_of(r.url) }}
+{% else %}Updated {{ r.updated_at|nicedate }}{% endif %}
+{%- endmacro %}
+

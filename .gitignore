@@ -1,0 +1,27 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# Database & local secrets
+*.db
+.secret_key
+
+# Local uploaded files (keep directory structure via .gitkeep)
+uploads/*
+!uploads/.gitkeep
+!uploads/pdfs/.gitkeep
+!uploads/ppts/.gitkeep
+!uploads/documents/.gitkeep
+!uploads/images/.gitkeep
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, flashes, csrf with context %}
+{% block title %}Log in{% endblock %}
+{% block body %}
+<main class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-brand"><span class="brand-mark">{{ icon('book') }}</span>Study Library</div>
+    <h1>Welcome back</h1>
+    <p class="muted">Log in to open your personal study library.</p>
+    {{ flashes() }}
+    <form method="post" action="{{ url_for('login') }}" class="form">
+      {{ csrf() }}
+      <label>Username
+        <input name="username" value="{{ username }}" required maxlength="32" autocomplete="username" autofocus>
+      </label>
+      <label>Password
+        <input type="password" name="password" required maxlength="128" autocomplete="current-password">
+      </label>
+      <button type="submit" class="btn btn-primary btn-block">Log in</button>
+    </form>
+    <p class="auth-switch">New here? <a href="{{ url_for('register') }}">Create an account</a></p>
+  </div>
+</main>
+{% endblock %}
+

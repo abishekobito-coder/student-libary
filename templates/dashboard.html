@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, csrf, subject_dialog with context %}
+{% block title %}Dashboard{% endblock %}
+{% block breadcrumbs %}<span class="crumb current">Dashboard</span>{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Welcome back, {{ g.user.username }}</h1>
+    <p class="muted">Organize your subjects, units and study materials in one place.</p>
+  </div>
+  <button type="button" class="btn btn-primary"
+          data-dialog="subjectDialog"
+          data-action="{{ url_for('subject_create') }}"
+          data-title="New subject" data-submit="Create subject"
+          data-fields='{"name": "", "description": "", "icon": "book"}'>{{ icon('plus') }}<span>Create Subject</span></button>
+</div>
+
+<div class="stats">
+  <div class="stat"><span class="stat-icon">{{ icon('folder') }}</span><div><div class="stat-num">{{ stats.subjects }}</div><div class="stat-label">Subjects</div></div></div>
+  <div class="stat"><span class="stat-icon">{{ icon('layers') }}</span><div><div class="stat-num">{{ stats.units }}</div><div class="stat-label">Units</div></div></div>
+  <div class="stat"><span class="stat-icon">{{ icon('t-pdf') }}</span><div><div class="stat-num">{{ stats.resources }}</div><div class="stat-label">Materials</div></div></div>
+  <div class="stat"><span class="stat-icon">{{ icon('star') }}</span><div><div class="stat-num">{{ stats.favorites }}</div><div class="stat-label">Favorites</div></div></div>
+</div>
+
+<section class="section">
+  <div class="section-head">
+    <h2>Subjects</h2>
+    <div class="toolbar">
+      <form method="get" action="{{ url_for('dashboard') }}" class="search" role="search">
+        {{ icon('search') }}
+        <input type="search" name="q" value="{{ q }}" placeholder="Search subjects…" maxlength="100"
+               data-live-search="#subjectGrid" aria-label="Search subjects">
+      </form>
+      <div class="view-toggle" data-view-for="#subjectGrid">
+        <button type="button" class="btn btn-icon" data-view="grid" title="Grid view" aria-label="Grid view">{{ icon('grid') }}</button>
+        <button type="button" class="btn btn-icon" data-view="list" title="List view" aria-label="List view">{{ icon('list') }}</button>
+      </div>
+    </div>
+  </div>
+
+  {% if subjects %}
+  <div class="subject-grid view-grid" id="subjectGrid" data-view-key="subjects">
+    {% for s in subjects %}
+    <article class="folder" data-name="{{ (s.name ~ ' ' ~ s.description)|lower }}">
+      <a class="folder-link" href="{{ url_for('subject_view', subject_id=s.id) }}">
+        <span class="folder-icon">{{ icon(s.icon) }}</span>
+        <span class="folder-text">
+          <span class="folder-name">{{ s.name }}</span>
+          {% if s.description %}<span class="folder-desc">{{ s.description }}</span>{% endif %}
+          <span class="folder-meta">{{ s.unit_count }} unit{{ '' if s.unit_count == 1 else 's' }} · {{ s.resource_count }} material{{ '' if s.resource_count == 1 else 's' }}</span>
+        </span>
+      </a>
+      <div class="folder-actions">
+        <button type="button" class="btn btn-sm btn-icon" title="Rename / edit" aria-label="Edit subject"
+                data-dialog="subjectDialog"
+                data-action="{{ url_for('subject_edit', subject_id=s.id) }}"
+                data-title="Edit subject" data-submit="Save changes"
+                data-fields='{{ {"name": s.name, "description": s.description, "icon": s.icon}|tojson }}'>{{ icon('edit') }}</button>
+        <form method="post" action="{{ url_for('subject_delete', subject_id=s.id) }}" class="inline"
+              data-confirm='Delete the subject "{{ s.name }}" with all its units and files? This cannot be undone.'>
+          {{ csrf() }}
+          <button type="submit" class="btn btn-sm btn-icon btn-danger-ghost" title="Delete" aria-label="Delete subject">{{ icon('trash') }}</button>
+        </form>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  <p class="empty-inline" data-no-results="#subjectGrid" hidden>No subjects match your search.</p>
+  {% elif q %}
+  <div class="empty">
+    <p>No subjects match “{{ q }}”.</p>
+    <a class="btn" href="{{ url_for('dashboard') }}">Clear search</a>
+  </div>
+  {% else %}
+  <div class="empty">
+    <span class="empty-icon">{{ icon('folder') }}</span>
+    <h3>No subjects yet</h3>
+    <p class="muted">Create your first subject, for example “Computer Networks”.</p>
+    <button type="button" class="btn btn-primary"
+            data-dialog="subjectDialog" data-action="{{ url_for('subject_create') }}"
+            data-title="New subject" data-submit="Create subject"
+            data-fields='{"name": "", "description": "", "icon": "book"}'>{{ icon('plus') }}<span>Create Subject</span></button>
+  </div>
+  {% endif %}
+</section>
+
+<div class="two-col">
+  <section class="section panel" id="recent">
+    <h2>{{ icon('clock') }} Recently opened</h2>
+    {% if recent %}
+    <ul class="mini-list">
+      {% for r in recent %}
+      <li>
+        <a href="{{ url_for('resource_view', resource_id=r.id) }}" class="mini-item">
+          <span class="type-badge type-{{ r.type }}">{{ icon('t-' ~ r.type) }}</span>
+          <span class="mini-text">
+            <span class="mini-title truncate">{{ r.title }}</span>
+            <span class="mini-sub truncate">{{ r.subject_name }} › {{ r.unit_name }}</span>
+          </span>
+          <span class="mini-time">{{ r.last_opened|nicedate }}</span>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted small">Materials you open will appear here.</p>
+    {% endif %}
+  </section>
+
+  <section class="section panel" id="favorites">
+    <h2>{{ icon('star') }} Favorites</h2>
+    {% if favorites %}
+    <ul class="mini-list">
+      {% for r in favorites %}
+      <li>
+        <a href="{{ url_for('resource_view', resource_id=r.id) }}" class="mini-item">
+          <span class="type-badge type-{{ r.type }}">{{ icon('t-' ~ r.type) }}</span>
+          <span class="mini-text">
+            <span class="mini-title truncate">{{ r.title }}</span>
+            <span class="mini-sub truncate">{{ r.subject_name }} › {{ r.unit_name }}</span>
+          </span>
+          <span class="mini-time">{{ TYPE_LABELS[r.type] }}</span>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted small">Click the star on any material to pin it here.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
+
+{% block dialogs %}{{ subject_dialog() }}{% endblock %}
+

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon with context %}
+{% block title %}{{ error.code if error else 500 }}{% endblock %}
+
+{% macro error_box() %}
+<div class="error-box">
+  <div class="error-code">{{ error.code if error else 500 }}</div>
+  <h1>{{ error.name if error else "Something went wrong" }}</h1>
+  <p class="muted">
+    {% if error and error.code == 404 %}
+      This page or item doesn't exist, or it belongs to another account.
+    {% elif error and error.description %}
+      {{ error.description }}
+    {% else %}
+      An unexpected error occurred. Please try again.
+    {% endif %}
+  </p>
+  <a class="btn btn-primary" href="{{ url_for('index') }}">{{ icon('home') }}<span>Back to library</span></a>
+</div>
+{% endmacro %}
+
+{% block content %}{{ error_box() }}{% endblock %}
+{% block plain_content %}{{ error_box() }}{% endblock %}
+
